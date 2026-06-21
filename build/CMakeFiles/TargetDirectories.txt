@@ -1,0 +1,3 @@
+C:/Users/natem/source/repos/vnm/build/CMakeFiles/VulkanTutorial.dir
+C:/Users/natem/source/repos/vnm/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/natem/source/repos/vnm/build/CMakeFiles/ZERO_CHECK.dir
