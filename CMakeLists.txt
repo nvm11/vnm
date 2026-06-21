@@ -20,7 +20,7 @@ target_link_libraries(VulkanTutorial
     glm::glm
     tinyobjloader::tinyobjloader
     nlohmann_json::nlohmann_json
-    ktx
+    KTX::ktx
 )
 
 target_include_directories(VulkanTutorial PRIVATE ${CMAKE_SOURCE_DIR}/src)
