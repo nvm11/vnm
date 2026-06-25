@@ -1,48 +1,22 @@
-#if defined(__INTELLISENSE__) || !defined(USE_CPP20_MODULES)
-#include <vulkan/vulkan_raii.hpp>
-#else
-import vulkan_hpp;
-#endif
+#define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
 
 #include <iostream>
-#include <stdexcept>
-#include <cstdlib>
 
-class HelloTriangleApplication {
-public:
-    void run() {
-        initVulkan();
-        mainLoop();
-        cleanup();
+int main() {
+    if (!glfwInit()) {
+        std::cerr << "Failed to init GLFW\n";
+        return 1;
     }
 
-private:
-    void initVulkan() {
-
+    if (!glfwVulkanSupported()) {
+        std::cerr << "Vulkan not supported\n";
+        return 1;
     }
 
-    void mainLoop() {
+    std::cout << "Vulkan is supported. Ready to go.\n";
 
-    }
-
-    void cleanup() {
-
-    }
-};
-
-int main()
-{
-    try
-    {
-        HelloTriangleApplication app;
-        app.run();
-    }
-    catch (const std::exception& e)
-    {
-        std::cerr << e.what() << std::endl;
-        return EXIT_FAILURE;
-    }
-
-    return EXIT_SUCCESS;
+    glfwTerminate();
+    return 0;
 }
