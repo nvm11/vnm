@@ -18,3 +18,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     glfw
     glm::glm
 )
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
+)
