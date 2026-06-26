@@ -4,7 +4,8 @@
         {
             "label": "Build",
             "type": "shell",
-            "command": "cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=C:/Users/natem/vcpkg/scripts/buildsystems/vcpkg.cmake; cmake --build build"
+            "command": "cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=C:/Users/natem/vcpkg/scripts/buildsystems/vcpkg.cmake; cmake --build build",
+            "problemMatcher": []
         }
     ]
 }
