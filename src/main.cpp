@@ -122,6 +122,16 @@ private:
         instance = vk::raii::Instance(context, createInfo);
     }
 
+    std::vector<const char *> getRequiredInstanceExtensions()
+    {
+        uint32_t glfwExtensionCount = 0;
+        auto glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+
+        std::vector extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+
+        return extensions;
+    }
+
     void InitVulkan()
     {
         CreateInstance();
