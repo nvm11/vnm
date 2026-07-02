@@ -149,6 +149,10 @@ private:
 
         std::vector extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
+        if (enableValidationLayers) {
+            extensions.push_back(vk::EXTDebugUtilsExtensionName);
+        }
+
         return extensions;
     }
 
