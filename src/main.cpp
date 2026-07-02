@@ -11,12 +11,23 @@ import vulkan_hpp;
 #include <cstdlib>
 #include <memory>
 
+    constexpr uint32_t WIDTH = 800;
+    constexpr uint32_t HEIGHT = 600;
+
+    // Vulkan validation layers
+    const std::vector<char const *> validationLayers = {
+        "VK_LAYER_KHRONOS_validation"};
+
+    #ifdef NDEBUG
+        constexpr bool enableValidationLayers = false;
+    #else
+        constexpr bool enableValidationLayers = true;
+    #endif
+
 class HelloTriangleApplication
 {
 public:
     // GLFW objs and properties
-    static constexpr uint32_t WIDTH = 800;
-    static constexpr uint32_t HEIGHT = 600;
     GLFWwindow *window;
 
     // Vulkan Objects
@@ -85,7 +96,6 @@ private:
             .enabledExtensionCount = glfwExtensionCount,
             .ppEnabledExtensionNames = glfwExtensions};
 
-        
         // Create the instance
         instance = vk::raii::Instance(context, createInfo);
     }
