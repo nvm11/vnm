@@ -35,6 +35,7 @@ public:
     // Vulkan Objects
     vk::raii::Context context;
     vk::raii::Instance instance = nullptr;
+    vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
 
     void Run()
     {
@@ -125,7 +126,7 @@ private:
                                          [requiredExtension](auto const &extensionProperty)
                                          { return strcmp(extensionProperty.extensionName, requiredExtension) == 0; });
                                  });
-        if(unsupportedPropertyIt != requiredExtensions.end())
+        if (unsupportedPropertyIt != requiredExtensions.end())
         {
             throw std::runtime_error("Required extension not supported: " + std::string(*unsupportedPropertyIt));
         }
@@ -149,16 +150,45 @@ private:
 
         std::vector extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
-        if (enableValidationLayers) {
+        if (enableValidationLayers)
+        {
             extensions.push_back(vk::EXTDebugUtilsExtensionName);
         }
 
         return extensions;
     }
 
+    // Severity allows for comparison operations
+    static VKAPI_ATTR vk::Bool32 VKAPI_CALL DebugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT severity,
+                                                          vk::DebugUtilsMessageTypeFlagsEXT type,
+                                                          const vk::DebugUtilsMessengerCallbackDataEXT *pCallbackData,
+                                                          void *pUserData)
+    {
+        std::cerr << "validation layer: type " << to_string(type) << " msg: " << pCallbackData->pMessage << std::endl;
+        return vk::False;
+    }
+
+    void SetupDebugMessenger()
+    {
+        if (!enableValidationLayers)
+        {
+            return;
+        }
+
+        vk::DebugUtilsMessageSeverityFlagsEXT severityFlags(vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
+                                                            vk::DebugUtilsMessageSeverityFlagBitsEXT::eError);
+        vk::DebugUtilsMessageTypeFlagsEXT messageTypeFlags(
+            vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation);
+        vk::DebugUtilsMessengerCreateInfoEXT debugUtilsMessengerCreateInfoEXT{.messageSeverity = severityFlags, // types of severities callbacks happen for
+                                                                              .messageType = messageTypeFlags, // which types of messages callback is notified of
+                                                                              .pfnUserCallback = &DebugCallback}; // pointer to callback function
+        debugMessenger = instance.createDebugUtilsMessengerEXT(debugUtilsMessengerCreateInfoEXT);
+    }
+
     void InitVulkan()
     {
         CreateInstance();
+        SetupDebugMessenger();
     }
 
     void MainLoop()
