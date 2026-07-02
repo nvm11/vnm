@@ -101,22 +101,42 @@ private:
         auto unsupportedLayerIt = std::ranges::find_if(requiredLayers,
                                                        [&layerProperties](auto const &requiredLayer)
                                                        {
-                                                           return std::ranges::none_of(layerProperties,
-                                                                                       [requiredLayer](auto const &layerProperty)
-                                                                                       { return strcmp(layerProperty.layerName, requiredLayer) == 0; });
+                                                           return std::ranges::none_of(
+                                                               layerProperties,
+                                                               [requiredLayer](auto const &layerProperty)
+                                                               { return strcmp(layerProperty.layerName, requiredLayer) == 0; });
                                                        });
         if (unsupportedLayerIt != requiredLayers.end())
         {
             throw std::runtime_error("Required layer not supported: " + std::string(*unsupportedLayerIt));
         }
 
+        // Get required extensions
+        auto requiredExtensions = getRequiredInstanceExtensions();
+
+        // Check if the extensions are supported
+        auto extensionProperties = context.enumerateInstanceExtensionProperties();
+        auto unsupportedPropertyIt =
+            std::ranges::find_if(requiredExtensions,
+                                 [&extensionProperties](auto const &requiredExtension)
+                                 {
+                                     return std::ranges::none_of(
+                                         extensionProperties,
+                                         [requiredExtension](auto const &extensionProperty)
+                                         { return strcmp(extensionProperty.extensionName, requiredExtension) == 0; });
+                                 });
+        if(unsupportedPropertyIt != requiredExtensions.end())
+        {
+            throw std::runtime_error("Required extension not supported: " + std::string(*unsupportedPropertyIt));
+        }
         // Describe how to create the app
         // Tells Vk what global extensions and validation layers to use
         // Global = entire application, not just the associated device
         vk::InstanceCreateInfo createInfo{
             .pApplicationInfo = &appInfo,
-            .enabledExtensionCount = glfwExtensionCount,
-            .ppEnabledExtensionNames = glfwExtensions};
+            .enabledLayerCount = static_cast<uint32_t>(requiredLayers.size()),
+            .enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size()),
+            .ppEnabledExtensionNames = requiredExtensions.data()};
 
         // Create the instance
         instance = vk::raii::Instance(context, createInfo);
