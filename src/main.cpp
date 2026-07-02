@@ -10,19 +10,21 @@ import vulkan_hpp;
 #include <stdexcept>
 #include <cstdlib>
 #include <memory>
+#include <vector>
+#include <algorithm>
 
-    constexpr uint32_t WIDTH = 800;
-    constexpr uint32_t HEIGHT = 600;
+constexpr uint32_t WIDTH = 800;
+constexpr uint32_t HEIGHT = 600;
 
-    // Vulkan validation layers
-    const std::vector<char const *> validationLayers = {
-        "VK_LAYER_KHRONOS_validation"};
+// Vulkan validation layers
+const std::vector<char const *> validationLayers = {
+    "VK_LAYER_KHRONOS_validation"};
 
-    #ifdef NDEBUG
-        constexpr bool enableValidationLayers = false;
-    #else
-        constexpr bool enableValidationLayers = true;
-    #endif
+#ifdef NDEBUG
+constexpr bool enableValidationLayers = false;
+#else
+constexpr bool enableValidationLayers = true;
+#endif
 
 class HelloTriangleApplication
 {
@@ -86,6 +88,26 @@ private:
             {
                 throw std::runtime_error("Required GLFW extension not supported: " + std::string(glfwExtensions[i]));
             }
+        }
+        // Get the required layers
+        std::vector<char const *> requiredLayers;
+        if (enableValidationLayers)
+        {
+            requiredLayers.assign(validationLayers.begin(), validationLayers.end());
+        }
+
+        // Check if the required layers are supported by the Vulkan implementation.
+        auto layerProperties = context.enumerateInstanceLayerProperties();
+        auto unsupportedLayerIt = std::ranges::find_if(requiredLayers,
+                                                       [&layerProperties](auto const &requiredLayer)
+                                                       {
+                                                           return std::ranges::none_of(layerProperties,
+                                                                                       [requiredLayer](auto const &layerProperty)
+                                                                                       { return strcmp(layerProperty.layerName, requiredLayer) == 0; });
+                                                       });
+        if (unsupportedLayerIt != requiredLayers.end())
+        {
+            throw std::runtime_error("Required layer not supported: " + std::string(*unsupportedLayerIt));
         }
 
         // Describe how to create the app
