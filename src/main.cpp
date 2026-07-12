@@ -36,6 +36,7 @@ public:
     vk::raii::Context context;
     vk::raii::Instance instance = nullptr;
     vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
+    vk::raii::PhysicalDevice physicalDevice = nullptr;
 
     void Run()
     {
@@ -179,16 +180,56 @@ private:
                                                             vk::DebugUtilsMessageSeverityFlagBitsEXT::eError);
         vk::DebugUtilsMessageTypeFlagsEXT messageTypeFlags(
             vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation);
-        vk::DebugUtilsMessengerCreateInfoEXT debugUtilsMessengerCreateInfoEXT{.messageSeverity = severityFlags, // types of severities callbacks happen for
-                                                                              .messageType = messageTypeFlags, // which types of messages callback is notified of
+        vk::DebugUtilsMessengerCreateInfoEXT debugUtilsMessengerCreateInfoEXT{.messageSeverity = severityFlags,   // types of severities callbacks happen for
+                                                                              .messageType = messageTypeFlags,    // which types of messages callback is notified of
                                                                               .pfnUserCallback = &DebugCallback}; // pointer to callback function
         debugMessenger = instance.createDebugUtilsMessengerEXT(debugUtilsMessengerCreateInfoEXT);
+    }
+
+    void PickPhysicalDevice()
+    {
+        // Query the number of devices
+        auto physicalDevices = instance.enumeratePhysicalDevices();
+
+        // Check if there are none
+        if (physicalDevices.empty())
+        {
+            // Error if so
+            throw std::runtime_error("No GPUs with Vuklan support found");
+        }
+
+        for (auto physicalDevice : physicalDevices)
+        {
+
+            break;
+        }
+    }
+
+    bool IsDeviceSuitable(vk::raii::PhysicalDevice const &physicalDevice)
+    {
+        // Get device details
+        auto deviceProperties = physicalDevice.getProperties();
+        // Get features supported
+        auto deviceFeatures = physicalDevice.getFeatures();
+
+        // Check that it is a dedicated gpu
+        if (deviceProperties.deviceType != vk::PhysicalDeviceType::eDiscreteGpu)
+        {
+            return false;
+        }
+        // Uses geometry shaders?
+        if (!deviceFeatures.geometryShader) {
+            return false;
+        }
+
+        return true;
     }
 
     void InitVulkan()
     {
         CreateInstance();
         SetupDebugMessenger();
+        PickPhysicalDevice();
     }
 
     void MainLoop()
