@@ -38,6 +38,8 @@ public:
     vk::raii::Instance instance = nullptr;
     vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
     vk::raii::PhysicalDevice physicalDevice = nullptr;
+    vk::raii::Device device = nullptr;
+    vk::raii::Queue graphicsQueue = nullptr;
 
     std::vector<const char *> requiredDeviceExtension = {vk::KHRSwapchainExtensionName};
 
@@ -204,6 +206,7 @@ private:
         for (const auto &pd : physicalDevices)
         {
             // Skip if device isn't suitable
+            // Application can't function without geometry shaders
             if (!IsDeviceSuitable(pd))
             {
                 continue;
@@ -221,12 +224,6 @@ private:
 
             // Maximum possible size of textures affects graphics quality
             score += deviceProperties.limits.maxImageDimension2D;
-
-            // Application can't function without geometry shaders
-            if (!deviceFeatures.geometryShader)
-            {
-                continue;
-            }
             candidates.insert(std::make_pair(score, pd));
         }
 
@@ -275,11 +272,51 @@ private:
         return supportsVulkan1_3 && supportsGraphics && supportsAllRequiredExtensions && supportsRequiredFeatures;
     }
 
+    void CreateLogicalDevice()
+    {
+        std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
+        auto graphicsQueueFamilyProperty = std::ranges::find_if(queueFamilyProperties, [](auto const &qfp)
+                                                                { return (qfp.queueFlags & vk::QueueFlagBits::eGraphics) != static_cast<vk::QueueFlags>(0); });
+        auto graphicsIndex = static_cast<uint32_t>(std::distance(queueFamilyProperties.begin(), graphicsQueueFamilyProperty));
+
+        if (graphicsQueueFamilyProperty == queueFamilyProperties.end())
+        {
+            throw std::runtime_error("No graphics queue family found!");
+        }
+
+        // Queues require a priority from 0-1 even if there's only one
+        float queuePriority = 0.5f;
+        vk::DeviceQueueCreateInfo deviceQueueCreateInfo{.queueFamilyIndex = graphicsIndex, .queueCount = 1, .pQueuePriorities = &queuePriority};
+
+        // Create a chain of feature structures
+        vk::StructureChain<vk::PhysicalDeviceFeatures2,
+                           vk::PhysicalDeviceVulkan11Features,
+                           vk::PhysicalDeviceVulkan13Features,
+                           vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>
+            featureChain = {
+                {},                             // vk::PhysicalDeviceFeatures2 (empty for now)
+                {.shaderDrawParameters = true}, // Enable shader draw parameters from Vulkan 1.1
+                {.dynamicRendering = true},     // Enable dynamic rendering from Vulkan 1.3
+                {.extendedDynamicState = true}  // Enable extended dynamic state from the extension
+            };
+
+        vk::DeviceCreateInfo deviceCreateInfo{
+            .pNext = &featureChain.get<vk::PhysicalDeviceFeatures2>(),
+            .queueCreateInfoCount = 1,
+            .pQueueCreateInfos = &deviceQueueCreateInfo,
+            .enabledExtensionCount = static_cast<uint32_t>(requiredDeviceExtension.size()),
+            .ppEnabledExtensionNames = requiredDeviceExtension.data()};
+
+        device = vk::raii::Device(physicalDevice, deviceCreateInfo);
+        graphicsQueue = vk::raii::Queue(device, graphicsIndex, 0);
+    }
+
     void InitVulkan()
     {
         CreateInstance();
         SetupDebugMessenger();
         PickPhysicalDevice();
+        CreateLogicalDevice();
     }
 
     void MainLoop()
