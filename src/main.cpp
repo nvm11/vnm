@@ -12,6 +12,7 @@ import vulkan_hpp;
 #include <memory>
 #include <vector>
 #include <algorithm>
+#include <map>
 
 constexpr uint32_t WIDTH = 800;
 constexpr uint32_t HEIGHT = 600;
@@ -188,20 +189,46 @@ private:
 
     void PickPhysicalDevice()
     {
-        // Query the number of devices
-        auto physicalDevices = instance.enumeratePhysicalDevices();
-
-        // Check if there are none
+        auto physicalDevices = vk::raii::PhysicalDevices(instance);
         if (physicalDevices.empty())
         {
-            // Error if so
-            throw std::runtime_error("No GPUs with Vuklan support found");
+            throw std::runtime_error("failed to find GPUs with Vulkan support!");
         }
 
-        for (auto physicalDevice : physicalDevices)
-        {
+        // Use an ordered map to automatically sort candidates by increasing score
+        std::multimap<int, vk::raii::PhysicalDevice> candidates;
 
-            break;
+        for (const auto &pd : physicalDevices)
+        {
+            auto deviceProperties = pd.getProperties();
+            auto deviceFeatures = pd.getFeatures();
+            uint32_t score = 0;
+
+            // Discrete GPUs have a significant performance advantage
+            if (deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)
+            {
+                score += 1000;
+            }
+
+            // Maximum possible size of textures affects graphics quality
+            score += deviceProperties.limits.maxImageDimension2D;
+
+            // Application can't function without geometry shaders
+            if (!deviceFeatures.geometryShader)
+            {
+                continue;
+            }
+            candidates.insert(std::make_pair(score, pd));
+        }
+
+        // Check if the best candidate is suitable at all
+        if (!candidates.empty() && candidates.rbegin()->first > 0)
+        {
+            physicalDevice = candidates.rbegin()->second;
+        }
+        else
+        {
+            throw std::runtime_error("failed to find a suitable GPU!");
         }
     }
 
@@ -218,7 +245,8 @@ private:
             return false;
         }
         // Uses geometry shaders?
-        if (!deviceFeatures.geometryShader) {
+        if (!deviceFeatures.geometryShader)
+        {
             return false;
         }
 
