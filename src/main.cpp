@@ -4,6 +4,11 @@
 import vulkan_hpp;
 #endif
 #define GLFW_INCLUDE_VULKAN
+#define VK_USE_PLATFORM_WIN32_KHR
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
 #include <GLFW/glfw3.h>
 
 #include <iostream>
@@ -40,6 +45,7 @@ public:
     vk::raii::PhysicalDevice physicalDevice = nullptr;
     vk::raii::Device device = nullptr;
     vk::raii::Queue graphicsQueue = nullptr;
+    vk::raii::SurfaceKHR surface = nullptr;
 
     std::vector<const char *> requiredDeviceExtension = {vk::KHRSwapchainExtensionName};
 
@@ -311,10 +317,23 @@ private:
         graphicsQueue = vk::raii::Queue(device, graphicsIndex, 0);
     }
 
+    void CreateSurface()
+    {
+        VkSurfaceKHR _surface;
+        // Use glfw to try to create a surface
+        if(!glfwCreateWindowSurface(*instance, window, nullptr, &_surface)) {
+            throw std::runtime_error("Falied to create window surface");
+        }
+
+        // Create actual vulkan surface with C++ wrapper
+        surface = vk::raii::SurfaceKHR(instance, _surface); 
+    }
+
     void InitVulkan()
     {
         CreateInstance();
         SetupDebugMessenger();
+        CreateSurface();
         PickPhysicalDevice();
         CreateLogicalDevice();
     }
