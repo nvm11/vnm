@@ -6,14 +6,18 @@ import vulkan_hpp;
 #define GLFW_INCLUDE_VULKAN
 #define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
+#define NOMINMAX
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 #include <GLFW/glfw3.h>
 
 #include <iostream>
+#include <cassert>
 #include <stdexcept>
 #include <cstdlib>
+#include <cstdint>
+#include <limits>
 #include <memory>
 #include <vector>
 #include <algorithm>
@@ -42,10 +46,16 @@ public:
     vk::raii::Context context;
     vk::raii::Instance instance = nullptr;
     vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
+    vk::raii::SurfaceKHR surface = nullptr;
     vk::raii::PhysicalDevice physicalDevice = nullptr;
     vk::raii::Device device = nullptr;
     vk::raii::Queue queue = nullptr;
-    vk::raii::SurfaceKHR surface = nullptr;
+
+    // Swap Chain
+    vk::raii::SwapchainKHR swapChain = nullptr;
+    std::vector<vk::Image> swapChainImages;
+    vk::SurfaceFormatKHR swapChainSurfaceFormat;
+    vk::Extent2D swapChainExtent;
 
     std::vector<const char *> requiredDeviceExtension = {vk::KHRSwapchainExtensionName};
 
@@ -325,11 +335,92 @@ private:
         queue = vk::raii::Queue(device, queueIndex, 0);
     }
 
+    vk::SurfaceFormatKHR ChooseSwapSurfaceFormat(std::vector<vk::SurfaceFormatKHR> const &availableFormats)
+    {
+        // Ensure we have formats
+        assert(!availableFormats.empty());
+
+        // Look for SRGB Format
+        const auto formatIt = std::ranges::find_if(
+            availableFormats,
+            [](const auto &format)
+            { return format.format == vk::Format::eB8G8R8A8Srgb && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear; });
+
+        // If desired format isn't found, return the first found one
+        return availableFormats[0];
+    }
+
+    vk::PresentModeKHR chooseSwapPresentMode(std::vector<vk::PresentModeKHR> const &availablePresentModes)
+    {
+        // eFifo is the only guaranteed mode.
+        // We need to see if eMailbox is available
+        assert(std::ranges::any_of(availablePresentModes, [](auto presentMode)
+                                   { return presentMode == vk::PresentModeKHR::eFifo; }));
+        return std::ranges::any_of(availablePresentModes,
+                                   [](const vk::PresentModeKHR value)
+                                   { return vk::PresentModeKHR::eMailbox == value; })
+                   ? vk::PresentModeKHR::eMailbox
+                   : vk::PresentModeKHR::eFifo;
+    }
+
+    vk::Extent2D ChooseSwapExtent(vk::SurfaceCapabilitiesKHR const &capabilities)
+    {
+        if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+        {
+            return capabilities.currentExtent;
+        }
+        int width, height;
+        glfwGetFramebufferSize(window, &width, &height);
+
+        return {
+            std::clamp<uint32_t>(width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
+            std::clamp<uint32_t>(height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)};
+    }
+
+    uint32_t ChooseSwapMinImageCount(vk::SurfaceCapabilitiesKHR const &surfaceCapabilities)
+    {
+        auto minImageCount = std::max(3u, surfaceCapabilities.minImageCount);
+        if ((0 < surfaceCapabilities.maxImageCount) && (surfaceCapabilities.maxImageCount < minImageCount))
+        {
+            minImageCount = surfaceCapabilities.maxImageCount;
+        }
+        return minImageCount;
+    }
+
+    void CreateSwapChain()
+    {
+        vk::SurfaceCapabilitiesKHR surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(*surface);
+        swapChainExtent = ChooseSwapExtent(surfaceCapabilities);
+        uint32_t minImageCount = ChooseSwapMinImageCount(surfaceCapabilities);
+
+        std::vector<vk::SurfaceFormatKHR> availableFormats = physicalDevice.getSurfaceFormatsKHR(*surface);
+        swapChainSurfaceFormat = ChooseSwapSurfaceFormat(availableFormats);
+
+        std::vector<vk::PresentModeKHR> availablePresentModes = physicalDevice.getSurfacePresentModesKHR(*surface);
+
+        vk::SwapchainCreateInfoKHR swapChainCreateInfo{.surface = *surface,
+                                                       .minImageCount = minImageCount,
+                                                       .imageFormat = swapChainSurfaceFormat.format,
+                                                       .imageColorSpace = swapChainSurfaceFormat.colorSpace,
+                                                       .imageExtent = swapChainExtent,
+                                                       .imageArrayLayers = 1,                                    // Generating 2D Output
+                                                       .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,   // Operations we'l perform (just drawing to it for now)
+                                                       .imageSharingMode = vk::SharingMode::eExclusive,          // How to handle sc images accessed by multiple queues
+                                                       .preTransform = surfaceCapabilities.currentTransform,     // Apply transformation before present?
+                                                       .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque, // Use alpha for blending?
+                                                       .presentMode = chooseSwapPresentMode(availablePresentModes),
+                                                       .clipped = true,          // Ignore offscreen pixels?
+                                                       .oldSwapchain = nullptr}; // TODO: Account for resize
+
+        swapChain = vk::raii::SwapchainKHR(device, swapChainCreateInfo);
+        swapChainImages = swapChain.getImages();
+    }
+
     void CreateSurface()
     {
         VkSurfaceKHR _surface;
         // Use glfw to try to create a surface
-        if (!glfwCreateWindowSurface(*instance, window, nullptr, &_surface))
+        if (glfwCreateWindowSurface(*instance, window, nullptr, &_surface))
         {
             throw std::runtime_error("Falied to create window surface");
         }
@@ -345,6 +436,7 @@ private:
         CreateSurface();
         PickPhysicalDevice();
         CreateLogicalDevice();
+        CreateSwapChain();
     }
 
     void MainLoop()
