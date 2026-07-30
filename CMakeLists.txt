@@ -13,8 +13,8 @@ find_package(glm CONFIG REQUIRED)
 
 add_executable(${PROJECT_NAME} 
     src/main.cpp
-    src/entity.cpp
-    src/component.cpp
+    src/Entity.cpp
+    src/Component.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
