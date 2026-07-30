@@ -1,6 +1,8 @@
+#pragma once
 #include <string>
 #include <vector>
 #include <memory>
+
 #include "Component.h"
 
 class Entity
@@ -14,12 +16,12 @@ private:
 public:
     // Explicit keyword requires exact type matching
     // Constructor
-    explicit Entity(const std::string& name);
+    explicit Entity(const std::string &name);
 
     // Getters
-    const std::string& GetName();
+    const std::string &GetName();
     bool IsActive();
-    
+
     // Setters
     void SetActive(bool active);
 };
