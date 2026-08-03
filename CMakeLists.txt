@@ -15,6 +15,7 @@ add_executable(${PROJECT_NAME}
     src/main.cpp
     src/Entity.cpp
     src/Component.cpp
+    src/TransformComponent.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
