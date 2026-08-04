@@ -14,7 +14,6 @@ find_package(glm CONFIG REQUIRED)
 add_executable(${PROJECT_NAME} 
     src/main.cpp
     src/Entity.cpp
-    src/Component.cpp
     src/TransformComponent.cpp
 )
 
